@@ -1,45 +1,52 @@
-// ignore_for_file: camel_case_types
-import 'package:database/Screens/databaseHelper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path/path.dart';
+import 'package:flutter/src/widgets/framework.dart';
 
-// ignore: use_key_in_widget_constructors, must_be_immutable
+import 'databaseHelper.dart';
+
 class Home_Page extends StatefulWidget {
+  const Home_Page({super.key});
+
   @override
   State<Home_Page> createState() => _Home_PageState();
 }
 
 class _Home_PageState extends State<Home_Page> {
   List<Map<String, dynamic>> mydata = [];
-  final forkey = GlobalKey<FormState>();
-  bool _isloading = true;
-  void _refreshData() async {
+  final formkey = GlobalKey<FormState>();
+
+  bool _isLoading = true;
+
+  void _refereshData() async {
     final data = await DatabaseHelper.getItems();
     setState(() {
       mydata = data;
-      _isloading = false;
+      _isLoading = false;
     });
   }
 
   @override
-  void intState() {
+  void initState() {
+    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+    //     overlays: [SystemUiOverlay.top]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     super.initState();
-    _refreshData();
+    _refereshData();
   }
 
-  final TextEditingController _titeController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+
   void showMyForm(int? id) async {
     if (id != null) {
-      final existingData = mydata.firstWhere((element) => element[id] == id);
-      _titeController.text = existingData['title'];
+      final existingData = mydata.firstWhere((element) => element['id'] == id);
+      _titleController.text = existingData['title'];
       _descriptionController.text = existingData['description'];
     } else {
-      _titeController.text = "";
-      _descriptionController.text = "";
+      _titleController.text = '';
+      _descriptionController.text = '';
     }
+
     showModalBottomSheet(
         context: context,
         elevation: 5,
@@ -47,118 +54,120 @@ class _Home_PageState extends State<Home_Page> {
         isScrollControlled: true,
         builder: (_) => Container(
               padding: EdgeInsets.only(
-                  top: 12,
-                  right: 12,
-                  left: 12,
-                  bottom:
-                      MediaQuery.of(context as BuildContext).viewInsets.bottom +
-                          120),
+                top: 15,
+                left: 15,
+                right: 15,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 120,
+              ),
               child: Form(
-                  key: forkey,
+                  key: formkey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       TextFormField(
-                        controller: _titeController,
-                        decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            labelText: "Title",
-                            hintText: "Title"),
+                        controller: _titleController,
+                        validator: formValidator,
+                        decoration: InputDecoration(hintText: 'Title'),
+                      ),
+                      const SizedBox(
+                        height: 10,
                       ),
                       TextFormField(
-                        validator: formvalidator,
+                        validator: formValidator,
                         controller: _descriptionController,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          hintText: "Description",
-                          labelText: "Description",
-                        ),
+                        decoration:
+                            const InputDecoration(hintText: 'Description'),
+                      ),
+                      const SizedBox(
+                        height: 20,
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white),
                               onPressed: () {
-                                Navigator.pop(context as BuildContext);
+                                Navigator.pop(context);
                               },
-                              child: Text("Exit")),
+                              child: const Text("Exit")),
                           ElevatedButton(
-                              onPressed: () async {
-                                if (forkey.currentState!.validate()) {
-                                  if (id == null) {
-                                    await addItem();
-                                  }
-                                  if (id != null) {
-                                    await updateItem(id);
-                                  }
-
-                                  setState(() {
-                                    _titeController.text = "";
-                                    _descriptionController.text = "";
-                                  });
-                                  Navigator.pop(context);
+                            onPressed: () async {
+                              if (formkey.currentState!.validate()) {
+                                if (id == null) {
+                                  await addItem();
                                 }
-                              },
-                              child:
-                                  Text(id == null ? 'Cretae new ' : 'Update '))
+
+                                if (id != null) {
+                                  await updateItem(id);
+                                }
+
+                                // Clear the text fields
+                                setState(() {
+                                  _titleController.text = '';
+                                  _descriptionController.text = '';
+                                });
+
+                                // Close the bottom sheet
+                                Navigator.pop(context);
+                              }
+                              // Save new data
+                            },
+                            child: Text(id == null ? 'Create New' : 'Update'),
+                          ),
                         ],
                       )
                     ],
                   )),
             ));
-    String? formvalidator(String? value) {
-      if (value!.isEmpty) return 'Field Required';
-      return null;
-    }
+  }
 
-    Future<void> addItem() async {
-      await DatabaseHelper.createItem(
-          _titeController.text, _descriptionController.text);
-      _refreshData();
-    }
+  String? formValidator(String? value) {
+    if (value!.isEmpty) return 'Filed is Required';
+    return null;
+  }
 
-    Future<void> updateItem(int id) async {
-      await DatabaseHelper.updateItem(
-          id, _titeController.text, _descriptionController.text);
-      _refreshData();
-    }
+  Future<void> addItem() async {
+    await DatabaseHelper.createItem(
+        _titleController.text, _descriptionController.text);
+    _refereshData();
+  }
 
-    void deleteItem(int id) async {
-      await DatabaseHelper.deletItems(id);
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
-        const SnackBar(
-          content: Text("Delted"),
-          backgroundColor: Colors.black,
-        ),
-      );
-      _refreshData();
-    }
+  Future<void> updateItem(int id) async {
+    await DatabaseHelper.updateItem(
+        id, _titleController.text, _descriptionController.text);
+    _refereshData();
+  }
 
-    @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Center(
-            child: Text("DataBase Crud "),
-          ),
-        ),
-        body: _isloading
-            ? Center(
-                child: Text("Please enter come content"),
-              )
-            : ListView.builder(
-                itemCount: mydata.length,
-                itemBuilder: (context, index) {
-                  return Card(
+  void deleteItem(int id) async {
+    await DatabaseHelper.deleteItem(id);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text("Succefully Delete data"),
+      backgroundColor: Colors.blueGrey,
+    ));
+    _refereshData();
+  }
+
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Center(
+            child: Text(
+          "My Local DataBase",
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        )),
+      ),
+      body: _isLoading
+          ? const Center(
+              child: Text("Please enter the data"),
+            )
+          : ListView.builder(
+              itemCount: mydata.length,
+              itemBuilder: (context, index) => Card(
                     color: index % 2 == 0 ? Colors.red : Colors.blueGrey[500],
-                    margin: EdgeInsets.all(15),
+                    margin: const EdgeInsets.all(15),
                     child: ListTile(
                       title: Text(mydata[index]['title']),
                       subtitle: Text(mydata[index]['description']),
@@ -167,33 +176,25 @@ class _Home_PageState extends State<Home_Page> {
                         child: Row(
                           children: [
                             IconButton(
-                                onPressed: () =>
-                                    showMyForm(mydata[index]['id']),
-                                icon: Icon(Icons.edit)),
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => showMyForm(mydata[index]['id']),
+                            ),
                             IconButton(
                                 onPressed: () =>
                                     deleteItem(mydata[index]['id']),
-                                icon: Icon(Icons.delete))
+                                icon: const Icon(Icons.delete))
                           ],
                         ),
                       ),
                     ),
-                  );
-                }),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => showMyForm(null),
-          child: Text(
-            "New",
-            style: TextStyle(fontSize: 22, color: Colors.white),
-          ),
+                  )),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showMyForm(null),
+        child: Text(
+          "+",
+          style: TextStyle(fontSize: 45),
         ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
+      ),
+    );
   }
 }
